@@ -67,3 +67,22 @@ Tests: `node --test tests/*.test.js` includes the original physics tests and the
 ### Future work
 
 Pass C can introduce Arcwrights and Burrowers while reusing the existing avatar rendering, animation-state tracking and appearance system. Further cosmetic rewards can be added to `src/avatar.js` without touching the movement engine. There is no sign-in or server-side sync at present: cosmetic progress is per browser.
+
+## Terrain-art pass (PR #4)
+
+Terrain visuals now come from `src/terrain-art.js`, separate from game physics. Each
+material has a consistent base style plus reproducible variation determined by
+tile coordinates and a world seed. Earth has soil shading, embedded stones,
+root traces and greenery only along exposed surfaces. Bedrock has faceted
+mineral textures, cracks and highlights. Wooden walkway tiles have varying
+braces, wood grain and fasteners; spikes retain a strong, recognisable hazard
+silhouette with small metal variations.
+
+Neighbour detection controls exposed edges, so greenery does not appear inside
+solid earth, and faces next to open air are shaded appropriately. Tile art is
+cached in small canvases and reused on every frame; changing terrain refreshes
+the sprite key when its type or exposed-edge configuration changes. Visual
+randomness is deterministic: no flicker, no changed collision rules and no
+changes to mathematical specialist behaviour.
+
+Run all tests with `node --test tests/*.test.js`.
