@@ -1,7 +1,7 @@
-name: Physics checks
+name: Graphlings checks
 on:
   push:
-    branches: [main, feat/pass-a-world-physics]
+    branches: ['**']
   pull_request:
 jobs:
   test:
@@ -15,5 +15,5 @@ jobs:
         run: |
           node --check src/physics.js
           node --check src/game.js
-      - name: Test physics
+      - name: Physics and specialist tests
         run: node --test tests/physics.test.js
