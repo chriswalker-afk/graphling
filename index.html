@@ -4,17 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#192c36">
-  <title>Graphlings — Linear Specialists</title>
+  <title>Graphlings — World & Wardrobe</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./src/physics.js" defer></script>
+  <script src="./src/avatar.js" defer></script>
   <script src="./src/game.js" defer></script>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <div class="brand"><span class="eyebrow">GRAPHLINGS · PROTOTYPE B</span><h1>Graphlings</h1><p>Little feet. Big problems.</p></div>
+    <div class="brand"><span class="eyebrow">GRAPHLINGS · ANIMATED WORLD</span><h1>Graphlings</h1><p>Little feet. Big problems.</p></div>
     <div class="toolbar"><label for="level">Level</label>
       <select id="level"><option value="0">01 · Bridge the Gap</option><option value="1">02 · The Earth Wall</option><option value="2">03 · Spike Garden</option></select>
+      <button id="wardrobeOpen" class="wardrobe-launch" type="button" aria-haspopup="dialog">✦ Wardrobe <span id="newParts" hidden>New!</span></button>
       <button id="reset" type="button">Restart</button>
     </div>
   </header>
@@ -30,8 +32,12 @@
         <button id="pause" type="button" aria-pressed="false">Pause</button>
         <button id="step" type="button">Step</button>
         <label for="speed">Speed</label><select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+        <label class="zoom-control" for="zoom">View</label>
+        <select id="zoom" aria-label="Scene zoom"><option value="0.85" selected>Wide</option><option value="0.93">Balanced</option><option value="1">Close</option></select>
         <label class="grid-toggle"><input type="checkbox" id="grid"> Grid</label>
       </div>
+      <div id="unlockToast" class="unlock-toast" role="status" aria-live="polite" hidden></div>
+      <div class="pan-hint" aria-hidden="true">Swipe the landscape to explore the whole level.</div>
       <div class="game-message" id="message" aria-live="polite">Press Play or click a Graphling to give it a job.</div>
       <div class="level-hint"><strong>Level idea</strong><span id="levelHint"></span></div>
     </section>
@@ -77,7 +83,21 @@
       </details>
     </aside>
   </main>
-  <footer>Pass B — Rampwrights, Trenchers and linear graphs. Quadratic specialists are planned for Pass C.</footer>
+  <dialog id="wardrobe" class="wardrobe-dialog" aria-labelledby="wardrobeTitle">
+    <div class="wardrobe-header"><div><span class="eyebrow">GRAPHLETS & GADGETS</span><h2 id="wardrobeTitle">Graphling Wardrobe</h2><p>Change how your whole crew looks. Outfits never change movement or maths.</p></div>
+      <button id="wardrobeClose" type="button" class="wardrobe-close" aria-label="Close wardrobe">✕</button></div>
+    <div class="wardrobe-content">
+      <div class="wardrobe-stage"><canvas id="avatarPreview" width="250" height="250" aria-label="Animated preview of your customised Graphling"></canvas>
+        <div class="palette-label">Body colour</div><div class="palette-row" id="toneChoices" role="group" aria-label="Choose body colour"></div>
+        <p class="wardrobe-progress" id="wardrobeProgress"></p></div>
+      <div class="wardrobe-picker"><div class="part-tabs" id="partTabs" role="group" aria-label="Choose a body part"></div>
+        <div class="part-options" id="partOptions" aria-live="polite"></div>
+        <p class="wardrobe-footnote">Earn new parts by rescuing Graphlings and using specialists. Unlocks are saved in this browser, not tied to an account.</p>
+        <button id="resetLook" type="button" class="subtle-button">Use starter look</button>
+      </div>
+    </div>
+  </dialog>
+  <footer>Graphlings — physical workers, mathematical routes and a wardrobe of unlockable cosmetic parts.</footer>
 </div>
 </body>
 </html>
