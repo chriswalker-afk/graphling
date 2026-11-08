@@ -444,7 +444,7 @@
   canvas.addEventListener('pointermove', paint);
   canvas.addEventListener('pointerup', () => { painting = false; });
   canvas.addEventListener('pointercancel', () => { painting = false; });
-  els.pause.addEventListener('click', () => { if (selected && !paused) cancelEditor(); setPaused(!paused); });
+  els.pause.addEventListener('click', () => { if (selected) cancelEditor(); setPaused(!paused); });
   els.step.addEventListener('click', () => {
     if (selected) cancelEditor(); setPaused(true);
     for (let i = 0; i < 12 && !finished; i++) simulationStep(1 / 120);
