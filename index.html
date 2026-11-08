@@ -4,44 +4,80 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#192c36">
-  <title>Graphlings — World Lab</title>
+  <title>Graphlings — Linear Specialists</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./src/physics.js" defer></script>
   <script src="./src/game.js" defer></script>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div><span class="eyebrow">GRAPHLINGS · PROTOTYPE A</span><h1>World Lab</h1><p>Little feet. Big problems.</p></div>
-      <div class="toolbar">
-        <label for="level">Landscape</label><select id="level"><option value="0">01 · First steps</option><option value="1">02 · Spike garden</option><option value="2">03 · The long drop</option></select>
-        <button id="reset" type="button">Restart</button>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="eyebrow">GRAPHLINGS · PROTOTYPE B</span><h1>Graphlings</h1><p>Little feet. Big problems.</p></div>
+    <div class="toolbar"><label for="level">Level</label>
+      <select id="level"><option value="0">01 · Bridge the Gap</option><option value="1">02 · The Earth Wall</option><option value="2">03 · Spike Garden</option></select>
+      <button id="reset" type="button">Restart</button>
+    </div>
+  </header>
+  <main>
+    <section class="game-panel" aria-label="Graphlings world">
+      <div class="scorebar">
+        <span><b id="rescued">0</b> rescued</span><span><b id="lost">0</b> squished</span>
+        <span><b id="active">0</b> walking</span><span><b id="remaining">12</b> waiting</span>
+        <span class="goal">Rescue at least <b id="target">8</b></span>
       </div>
-    </header>
-    <main>
-      <section class="game-panel" aria-label="Graphlings world">
-        <div class="scorebar">
-          <span><b id="rescued">0</b> rescued</span><span><b id="lost">0</b> squished</span><span><b id="active">0</b> walking</span><span><b id="remaining">0</b> waiting</span><span class="goal">Target: <b id="target">0</b></span>
+      <div class="viewport"><canvas id="world" width="1120" height="576" aria-label="Side-on world. Click a Graphling to pause and assign a specialist.">Your browser needs canvas support.</canvas></div>
+      <div class="controlbar">
+        <button id="pause" type="button" aria-pressed="false">Pause</button>
+        <button id="step" type="button">Step</button>
+        <label for="speed">Speed</label><select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+        <label class="grid-toggle"><input type="checkbox" id="grid"> Grid</label>
+      </div>
+      <div class="game-message" id="message" aria-live="polite">Press Play or click a Graphling to give it a job.</div>
+      <div class="level-hint"><strong>Level idea</strong><span id="levelHint"></span></div>
+    </section>
+    <aside class="sidebar">
+      <section class="role-panel" aria-label="Available specialists">
+        <h2>Specialists</h2><p>Click a walking Graphling to pause the game and give it a temporary job.</p>
+        <div class="role-list" role="group" aria-label="Choose specialist">
+          <button id="role-rampwright" data-role="rampwright" class="role selected" type="button" aria-pressed="true">
+            <span class="role-symbol" aria-hidden="true">▱</span><span><strong>Rampwright</strong><small>Build a straight path</small></span><span class="role-count" id="count-rampwright">×2</span>
+          </button>
+          <button id="role-trencher" data-role="trencher" class="role" type="button" aria-pressed="false">
+            <span class="role-symbol" aria-hidden="true">⚒</span><span><strong>Trencher</strong><small>Excavate a straight tunnel</small></span><span class="role-count" id="count-trencher">×1</span>
+          </button>
         </div>
-        <div class="viewport"><canvas id="world" width="1120" height="570" aria-label="Side-view Graphlings simulation with terrain, an entrance, an exit, and moving creatures">Your browser needs canvas support.</canvas></div>
-        <div class="controlbar"><button id="pause" type="button" aria-pressed="false">Pause</button><button id="step" type="button">Step</button><label for="speed">Speed</label><select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select><span class="control-note" id="message" aria-live="polite">Watch the Graphlings explore the landscape.</span></div>
       </section>
-      <aside class="sidebar">
-        <h2>Terrain workshop</h2><p>Pause the simulation to shape the world. Click or drag on the grid to paint tiles, then press Play.</p>
-        <fieldset id="tools"><legend>Paint with</legend>
-          <label><input type="radio" name="brush" value="earth" checked><span class="swatch earth"></span>Earth <small>diggable later</small></label>
-          <label><input type="radio" name="brush" value="rock"><span class="swatch rock"></span>Bedrock <small>indestructible</small></label>
-          <label><input type="radio" name="brush" value="bridge"><span class="swatch bridge"></span>Walkway <small>constructed</small></label>
-          <label><input type="radio" name="brush" value="spike"><span class="swatch spike"></span>Spikes <small>instant squish</small></label>
-          <label><input type="radio" name="brush" value="empty"><span class="swatch empty"></span>Erase <small>open air</small></label>
+      <section id="editor" class="editor" hidden aria-label="Linear graph editor">
+        <div class="editor-header"><h2>Plot a route</h2><button id="cancel" type="button" class="subtle" aria-label="Close graph editor">✕</button></div>
+        <p class="editor-intro">The entrance is <strong>(0, 0)</strong>. The <strong>x-axis</strong> runs right and <strong>y</strong> runs upwards.</p>
+        <div class="coords"><span>Selected Graphling</span><strong id="position">(0, 0)</strong><span id="facing">Facing right</span></div>
+        <form id="plotForm" novalidate>
+          <div class="formula">y = mx + c</div>
+          <div class="coefficients"><label for="m">Gradient, m<input id="m" name="m" type="text" inputmode="decimal" value="0" autocomplete="off" spellcheck="false" placeholder="e.g. 1/2"></label>
+            <label for="c">Intercept, c<input id="c" name="c" type="text" inputmode="decimal" value="0" autocomplete="off" spellcheck="false" placeholder="e.g. -2"></label></div>
+          <label for="ticks" class="tick-label">Action ticks <output id="tickValue" for="ticks">8</output></label><input id="ticks" name="ticks" type="range" min="1" max="16" value="8" step="1">
+          <div id="equation" class="equation" aria-live="polite">y = 0x + 0</div>
+          <div class="preview-note" id="previewNote" role="status">Choose a specialist and adjust the line.</div>
+          <button id="activate" class="primary" type="submit">Assign specialist</button>
+        </form>
+        <p class="editor-tip">The faint line is the full graph; the bright segment shows the action. A mismatch makes the Graphling shrug without using a charge.</p>
+      </section>
+      <section class="info rules" id="rules"><h3>Physical workers</h3><p>A Rampwright builds a walkable bridge ahead and walks on it. A Trencher digs through earth and leaves a usable tunnel. Both stop at obstructions or after their ticks run out, then return to ordinary walking.</p><p>Maximum gradient: <strong>|m| ≤ 1</strong>. Paths within <strong>0.35 units</strong> of the selected Graphling can be joined smoothly.</p></section>
+      <details id="workshop" class="workshop"><summary>Terrain workshop <span>optional sandbox</span></summary>
+        <p>Paint terrain for experiments. Painting automatically pauses the game. Restart keeps your painted landscape; Restore removes edits.</p>
+        <button id="toggleEdit" type="button" aria-pressed="false" class="secondary">Enable painting</button>
+        <fieldset id="tools" disabled><legend>Brush</legend>
+          <label><input type="radio" name="brush" value="earth" checked><span class="swatch earth"></span>Earth <small>diggable</small></label>
+          <label><input type="radio" name="brush" value="rock"><span class="swatch rock"></span>Bedrock <small>solid</small></label>
+          <label><input type="radio" name="brush" value="bridge"><span class="swatch bridge"></span>Walkway <small>walkable</small></label>
+          <label><input type="radio" name="brush" value="spike"><span class="swatch spike"></span>Spikes <small>hazard</small></label>
+          <label><input type="radio" name="brush" value="empty"><span class="swatch empty"></span>Erase <small>air</small></label>
         </fieldset>
-        <label class="toggle"><input type="checkbox" id="grid"> Show coordinate grid</label>
-        <button id="restore" type="button" class="secondary">Restore landscape</button>
-        <div class="info"><h3>Physics rules</h3><p>Graphlings walk, turn at walls, fall through gaps and squish on spikes or after a drop greater than <strong>4 units</strong>. Short drops are safe. Slopes and mathematical specialists come next.</p><p>The level entrance is the origin for future graph equations. Each tile represents one unit.</p></div>
-        <div class="info"><h3>Testing</h3><p>Try extending the walkway in <em>Spike garden</em> or bridging the pit in <em>First steps</em>. Terrain painting is a development tool, not a Graphling specialist ability.</p></div>
-      </aside>
-    </main>
-    <footer>Pass A — Physics sandbox · Pass B will add Rampwrights, Trenchers and linear equations.</footer>
-  </div>
+        <button id="restore" type="button" class="secondary">Restore original terrain</button>
+      </details>
+    </aside>
+  </main>
+  <footer>Pass B — Rampwrights, Trenchers and linear graphs. Quadratic specialists are planned for Pass C.</footer>
+</div>
 </body>
 </html>
