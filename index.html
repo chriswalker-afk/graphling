@@ -9,6 +9,7 @@
   <script src="./src/physics.js" defer></script>
   <script src="./src/avatar.js" defer></script>
   <script src="./src/terrain-art.js" defer></script>
+  <script src="./src/planning-guides.js" defer></script>
   <script src="./src/game.js" defer></script>
 </head>
 <body>
@@ -55,21 +56,21 @@
         </div>
       </section>
       <section id="editor" class="editor" hidden aria-label="Linear graph editor">
-        <div class="editor-header"><h2>Plot a route</h2><button id="cancel" type="button" class="subtle" aria-label="Close graph editor">✕</button></div>
+        <div class="editor-header"><h2>Plan a line</h2><button id="cancel" type="button" class="subtle" aria-label="Close graph editor">✕</button></div>
         <p class="editor-intro">The entrance is <strong>(0, 0)</strong>. The <strong>x-axis</strong> runs right and <strong>y</strong> runs upwards.</p>
         <div class="coords"><span>Selected Graphling</span><strong id="position">(0, 0)</strong><span id="facing">Facing right</span></div>
         <form id="plotForm" novalidate>
           <div class="formula">y = mx + c</div>
-          <div class="coefficients"><label for="m">Gradient, m<input id="m" name="m" type="text" inputmode="decimal" value="0" autocomplete="off" spellcheck="false" placeholder="e.g. 1/2"></label>
-            <label for="c">Intercept, c<input id="c" name="c" type="text" inputmode="decimal" value="0" autocomplete="off" spellcheck="false" placeholder="e.g. -2"></label></div>
-          <label for="ticks" class="tick-label">Action ticks <output id="tickValue" for="ticks">8</output></label><input id="ticks" name="ticks" type="range" min="1" max="16" value="8" step="1">
-          <div id="equation" class="equation" aria-live="polite">y = 0x + 0</div>
-          <div class="preview-note" id="previewNote" role="status">Choose a specialist and adjust the line.</div>
+          <div class="coefficients"><label for="m">Gradient, m<input id="m" name="m" type="text" inputmode="decimal" value="" autocomplete="off" spellcheck="false" placeholder="e.g. 1/2"></label>
+            <label for="c">Intercept, c<input id="c" name="c" type="text" inputmode="decimal" value="" autocomplete="off" spellcheck="false" placeholder="e.g. -2"></label></div>
+          <div class="energy-budget" aria-label="Fixed specialist energy"><span class="energy-icon" aria-hidden="true">⚡</span><div><strong>10 energy — fixed</strong><small>1 energy per horizontal unit. Stops early if blocked; unused energy is lost.</small></div></div>
+          <div id="equation" class="equation" aria-live="polite">Enter a gradient and intercept</div>
+          <div class="preview-note" id="previewNote" role="status">Dotted guides show terrain landmarks, not your predicted route.</div>
           <button id="activate" class="primary" type="submit">Assign specialist</button>
         </form>
-        <p class="editor-tip">The faint line is the full graph; the bright segment shows the action. A mismatch makes the Graphling shrug without using a charge.</p>
+        <p class="editor-tip">Sparse dotted marks indicate terrain heights, edges and the maximum horizontal energy reach. They never reveal your plotted line, endpoint or predicted outcome. Work out the equation first. A distant line makes the Graphling shrug without spending a specialist charge.</p>
       </section>
-      <section class="info rules" id="rules"><h3>Physical workers</h3><p>A Rampwright builds a walkable bridge ahead and walks on it. A Trencher digs through earth and leaves a usable tunnel. Both stop at obstructions or after their ticks run out, then return to ordinary walking.</p><p>Maximum gradient: <strong>|m| ≤ 1</strong>. Paths within <strong>0.35 units</strong> of the selected Graphling can be joined smoothly.</p></section>
+      <section class="info rules" id="rules"><h3>Physical workers</h3><p>A Rampwright builds a walkable bridge ahead and walks on it. A Trencher digs through earth and leaves a usable tunnel. Both start with 10 energy, stop at obstructions or when energy runs out, then return to ordinary walking.</p><p>Maximum gradient: <strong>|m| ≤ 1</strong>. Paths within <strong>0.35 units</strong> of the selected Graphling can be joined smoothly.</p></section>
       <details id="workshop" class="workshop"><summary>Terrain workshop <span>optional sandbox</span></summary>
         <p>Paint terrain for experiments. Painting automatically pauses the game. Restart keeps your painted landscape; Restore removes edits.</p>
         <button id="toggleEdit" type="button" aria-pressed="false" class="secondary">Enable painting</button>
