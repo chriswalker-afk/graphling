@@ -50,3 +50,20 @@ The tests cover collision, falls, spikes, slope traversability, specialist lifec
 ## Next step — Pass C
 
 Add the distinct quadratic specialists **Arcwright** and **Burrower**, allowing physical construction/excavation following `y = ax² + bx + c` without changing the underlying terrain, movement, or resource rules.
+
+## Pass B.5 — Motion and the Graphling Wardrobe
+
+This visual/character pass improves presentation before any new function families are introduced:
+
+- The **View** selector defaults to a wider `0.85×` camera, with `0.93×` and `1×` options. Pointer selection, workshop painting and mathematical previews use inverse camera coordinates so zoom never changes the underlying functions.
+- Graphlings have distance-driven, alternating footsteps, moving legs and arms, body bounce, blinks, facial reactions, animated turns, landing squash, fall expressions, specialist tools and temporary celebration. Motion is visual only; movement speed, collision size and equations are unchanged.
+- The **Wardrobe** lets players customise body shape, feet, antennae, hats and body colour. A large animated preview uses the very same canvas drawing system as the in-game characters. Everyone in the crew shares the equipped look.
+- Four body colours and the starter body parts are free. Additional body parts unlock by **rescues, completed Rampwright/Trencher actions and distinct levels cleared**. Unlock messages appear during play; cosmetics and milestones are saved to browser `localStorage` when available.
+- Opening the Wardrobe pauses the simulation and restores its previous play/pause state on closing. Cosmetic changes never modify the physics model or specialist mechanics.
+- On narrow screens, the level uses a horizontally scrollable playfield instead of squeezing Graphlings into an unreadable miniature.
+
+Tests: `node --test tests/*.test.js` includes the original physics tests and the new appearance/progression tests.
+
+### Future work
+
+Pass C can introduce Arcwrights and Burrowers while reusing the existing avatar rendering, animation-state tracking and appearance system. Further cosmetic rewards can be added to `src/avatar.js` without touching the movement engine. There is no sign-in or server-side sync at present: cosmetic progress is per browser.
