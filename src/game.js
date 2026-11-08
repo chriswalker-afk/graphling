@@ -319,43 +319,34 @@
     ctx.ellipse(x + 17 * s, y - 10 * s, 22 * s, 17 * s, 0, 0, Math.PI * 2);
     ctx.ellipse(x - 17 * s, y - 4 * s, 23 * s, 15 * s, 0, 0, Math.PI * 2); ctx.fill();
   }
+  // Tile sprites are generated once per material/coordinate/edge configuration.
+  const terrain = globalThis.GraphlingTerrainArt.createRenderer({ tileSize: U, seed: 59 });
   function drawTile(x, y, type) {
-    const px = x * U, py = y * U;
-    if (type === P.TILE.EARTH) {
-      ctx.fillStyle = '#ae8869'; ctx.fillRect(px, py, U, U);
-      ctx.fillStyle = '#98765c'; ctx.fillRect(px, py + 5, U, U - 5);
-      ctx.fillStyle = '#c5a384'; ctx.fillRect(px + 5, py + 13, 6, 3); ctx.fillRect(px + 21, py + 24, 5, 3);
-      if (!P.isSolid(P.tileAt(level, x + .1, y - .1))) {
-        ctx.fillStyle = '#8bb18a'; ctx.fillRect(px, py, U, 5);
-        ctx.fillStyle = '#b8cf9a'; ctx.fillRect(px, py, U, 2);
-      }
-    } else if (type === P.TILE.ROCK) {
-      ctx.fillStyle = '#647b83'; ctx.fillRect(px, py, U, U);
-      ctx.strokeStyle = '#92a5a7'; ctx.lineWidth = 1; ctx.beginPath();
-      ctx.moveTo(px + 3, py + 13); ctx.lineTo(px + 15, py + 7); ctx.lineTo(px + 29, py + 14);
-      ctx.moveTo(px + 12, py + 29); ctx.lineTo(px + 22, py + 18); ctx.stroke();
-    } else if (type === P.TILE.BRIDGE) {
-      ctx.fillStyle = '#9b6b47'; ctx.fillRect(px, py + 3, U, 9);
-      ctx.fillStyle = '#deb674'; ctx.fillRect(px, py, U, 5);
-      ctx.fillStyle = '#6b4f36'; ctx.fillRect(px + 6, py + 3, 2, 7); ctx.fillRect(px + 25, py + 3, 2, 7);
-    } else if (type === P.TILE.SPIKE) {
-      ctx.fillStyle = '#b34842'; ctx.fillRect(px, py + U - 6, U, 6);
-      ctx.fillStyle = '#e0ebea';
-      for (let k = 0; k < 3; k++) {
-        ctx.beginPath(); ctx.moveTo(px + k * 11, py + U - 6);
-        ctx.lineTo(px + k * 11 + 5.5, py + 7); ctx.lineTo(px + k * 11 + 11, py + U - 6); ctx.fill();
-      }
-      ctx.fillStyle = '#973e40'; ctx.fillRect(px, py + U - 4, U, 4);
-    }
+    terrain.draw(ctx, level.grid, x, y, type);
   }
   function drawPaths() {
     for (const path of level.paths) {
-      const x1 = path.x1 * U, y1 = path.y1 * U, x2 = path.x2 * U, y2 = path.y2 * U;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = path.kind === 'build' ? '#835e3d' : '#6a6758'; ctx.lineWidth = 10;
-      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-      ctx.strokeStyle = path.kind === 'build' ? '#e3b874' : '#bd9b73'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(x1, y1 - 2); ctx.lineTo(x2, y2 - 2); ctx.stroke();
+      const x1=path.x1*U,y1=path.y1*U,x2=path.x2*U,y2=path.y2*U;
+      const dx=x2-x1,dy=y2-y1,length=Math.hypot(dx,dy);
+      if(length<.001)continue;
+      ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+      if(path.kind==='build'){
+        // Built strips read as individual pieces of timber, not a flat solid line.
+        ctx.strokeStyle='#634a35';ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(x1,y1+1.5);ctx.lineTo(x2,y2+1.5);ctx.stroke();
+        ctx.strokeStyle='#b67a48';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+        ctx.strokeStyle='#ecc483';ctx.lineWidth=4.2;ctx.beginPath();ctx.moveTo(x1,y1-2);ctx.lineTo(x2,y2-2);ctx.stroke();
+        const nx=-dy/length, ny=dx/length, ux=dx/length,uy=dy/length;
+        ctx.strokeStyle='#745039';ctx.lineWidth=1.35;ctx.lineCap='butt';
+        for(let s=16;s<length-5;s+=17){
+          const xx=x1+ux*s,yy=y1+uy*s;
+          ctx.beginPath();ctx.moveTo(xx-nx*4,yy-ny*4);ctx.lineTo(xx+nx*4,yy+ny*4);ctx.stroke();
+        }
+      }else{
+        ctx.strokeStyle='#6e5a47';ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+        ctx.strokeStyle='#b29b76';ctx.lineWidth=5.2;ctx.beginPath();ctx.moveTo(x1,y1-1.6);ctx.lineTo(x2,y2-1.6);ctx.stroke();
+        ctx.strokeStyle='#e0c5a1';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x1,y1-3.4);ctx.lineTo(x2,y2-3.4);ctx.stroke();
+      }
+      ctx.restore();
     }
   }
   function drawAxes() {
