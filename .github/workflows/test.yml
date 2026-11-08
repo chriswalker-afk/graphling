@@ -15,5 +15,6 @@ jobs:
         run: |
           node --check src/physics.js
           node --check src/game.js
-      - name: Physics and specialist tests
-        run: node --test tests/physics.test.js
+          node --check src/avatar.js
+      - name: Physics, animation and cosmetic progression tests
+        run: node --test tests/*.test.js

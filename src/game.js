@@ -2,6 +2,8 @@
 (() => {
   'use strict';
   const P = globalThis.GraphlingPhysics;
+  const A = globalThis.GraphlingAvatar;
+  const reducedMotion = Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const $ = id => document.getElementById(id);
   const canvas = $('world'), ctx = canvas.getContext('2d');
   const U = 32, W = P.WIDTH * U, H = P.HEIGHT * U;
@@ -35,6 +37,74 @@
   let chosenRole = 'rampwright', selected = null, preview = null;
   let editMode = false, brush = 'earth', painting = false, last = performance.now();
   let particles = [], squishes = [];
+  let wardrobeCategory = 'feet', profile = A.load(), freshUnlocks = 0, wardrobeWasPaused = false;
+  const wardrobe = $('wardrobe'), wardrobeOpen = $('wardrobeOpen'), wardrobeClose = $('wardrobeClose');
+  const partTabs = $('partTabs'), partOptions = $('partOptions'), toneChoices = $('toneChoices');
+  const newParts = $('newParts'), unlockToast = $('unlockToast');
+  const previewCanvas = $('avatarPreview'), previewContext = previewCanvas.getContext('2d');
+  const zoomSelect = $('zoom');
+  function camera() {
+    const scale = Number(zoomSelect.value) || .85;
+    return { scale, x: (W - W * scale) / 2, y: (H - H * scale) / 2 };
+  }
+  function recordCosmetic(event, detail) {
+    const rewards = A.record(profile, event, detail);
+    A.save(profile);
+    if (!rewards.length) return;
+    freshUnlocks += rewards.length;
+    newParts.hidden = wardrobe.open || freshUnlocks === 0;
+    unlockToast.hidden = false;
+    unlockToast.textContent = 'New look unlocked: ' + rewards.map(reward => reward.name).join(', ') + '. Open the Wardrobe to try it!';
+    if (wardrobe.open) renderWardrobe();
+  }
+  function renderWardrobe() {
+    partTabs.replaceChildren(); partOptions.replaceChildren(); toneChoices.replaceChildren();
+    const stats = profile.stats;
+    $('wardrobeProgress').textContent = 'Rescued: ' + stats.rescued + '  ·  Rampwright jobs: ' + stats.built +
+      '  ·  Trencher jobs: ' + stats.dug + '  ·  Levels cleared: ' + stats.levels.length;
+    for (const t of A.TONES) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tone-choice';
+      b.style.background = t.color; b.title = t.name; b.setAttribute('aria-label',t.name);
+      b.setAttribute('aria-pressed',String(profile.equipped.tone === t.id));
+      b.addEventListener('click', () => { A.equip(profile,'tone',t.id); A.save(profile); renderWardrobe(); });
+      toneChoices.appendChild(b);
+    }
+    for (const category of Object.keys(A.CATALOG)) {
+      const tab = document.createElement('button'); tab.type='button';tab.className='part-tab';
+      tab.textContent = category === 'antenna' ? 'Antennae' : category.charAt(0).toUpperCase() + category.slice(1);
+      tab.setAttribute('aria-pressed',String(category === wardrobeCategory));
+      tab.addEventListener('click', () => {wardrobeCategory = category; renderWardrobe();});
+      partTabs.appendChild(tab);
+    }
+    for (const item of A.options(wardrobeCategory)) {
+      const available = A.isUnlocked(profile, wardrobeCategory, item.id);
+      const equipped = profile.equipped[wardrobeCategory] === item.id;
+      const button = document.createElement('button'); button.type = 'button';
+      button.className = 'part-option ' + (available ? 'unlocked' : 'locked') + (equipped ? ' selected' : '');
+      button.disabled = !available; button.setAttribute('aria-pressed',String(equipped));
+      const emblem = document.createElement('span'); emblem.className='part-option-icon';
+      emblem.textContent = available ? (equipped ? '✓' : '✦') : '🔒';
+      const label = document.createElement('span');
+      const title = document.createElement('strong'); title.textContent = item.name;
+      const hint = document.createElement('small');
+      hint.textContent = available ? (item.stat ? 'Unlocked!' : 'Starter piece') : item.hint +
+        ' (' + A.progress(profile,item) + '/' + item.need + ')';
+      label.append(title,hint);
+      const status = document.createElement('span');status.className='part-option-status';
+      status.textContent = equipped ? 'Wearing' : available ? 'Choose' : 'Locked';
+      button.append(emblem,label,status);
+      if (available) button.addEventListener('click',()=>{A.equip(profile,wardrobeCategory,item.id);A.save(profile);renderWardrobe();});
+      partOptions.appendChild(button);
+    }
+  }
+  function drawWardrobePreview() {
+    if (!wardrobe.open) return;
+    const c = previewContext; c.clearRect(0,0,250,250);
+    c.strokeStyle='#7cafa0';c.lineWidth=2;c.beginPath();c.ellipse(125,204,77,14,0,0,Math.PI*2);c.stroke();
+    c.fillStyle='#b8d7b6';c.fillRect(42,211,166,2);
+    const time = reducedMotion ? 0 : performance.now() / 1000;
+    A.draw(c,profile.equipped,{x:125,y:205,scale:3.8,dir:1,phase:time*13,grounded:true,moving:!reducedMotion,time,id:1});
+  }
   const rand = (a, b) => a + Math.random() * (b - a);
   const cloneGrid = grid => grid.map(row => row.slice());
   const fmt = n => (Math.abs(n) < .005 ? '0' : Number(n.toFixed(2)).toString());
@@ -45,6 +115,7 @@
     charges = { ...level.charges };
     walkers = []; spawned = rescued = lost = 0; spawnClock = .4;
     elapsed = 0; accumulator = frameCount = 0; particles = []; squishes = [];
+    unlockToast.hidden = true;
     paused = false; finished = false; selected = null; preview = null;
     els.editor.hidden = true;
     notice('Click a walking Graphling to pause and give it a specialist role.');
@@ -99,18 +170,26 @@
       spawned++; spawnClock += 1.3;
     }
     for (const w of walkers) {
+      if (!w.visual) w.visual = { phase: (w.id * 1.3) % 6.28, turn: 0, land: 0, moving: false };
+      const priorX = w.x, priorDir = w.dir, priorGround = w.grounded;
       const wasWorking = Boolean(w.specialist);
       const event = P.advance(level, w, dt);
+      const travelled = Math.abs(w.x - priorX);
+      w.visual.phase += reducedMotion ? 0 : travelled * 15;
+      w.visual.moving = travelled > 1e-5 && w.grounded;
+      w.visual.turn = w.dir !== priorDir ? 1 : Math.max(0, w.visual.turn - dt * 5);
+      w.visual.land = !priorGround && w.grounded ? 1 : Math.max(0, w.visual.land - dt * 4);
       if (wasWorking && w.specialist && frameCount % 11 === 0) {
         emit(w.x + rand(-.1, .1), w.y - .25, w.specialist.kind === 'rampwright' ? '#e8bd6d' : '#ae9275', 2);
       }
       if (wasWorking && !w.specialist && w.lastAction && w.alive) {
         const action = w.lastAction;
+        if (action.travelled > .2) recordCosmetic(action.kind === 'rampwright' ? 'build' : 'dig');
         const text = feedback[action.reason] || 'The specialist action has finished.';
         notice(text);
         w.lastAction = null;
       }
-      if (event === 'rescue') { rescued++; emit(w.x, w.y - .4, '#7ed3a9', 13); }
+      if (event === 'rescue') { rescued++; recordCosmetic('rescue'); emit(w.x, w.y - .4, '#7ed3a9', 13); }
       else if (event) {
         lost++; squishes.push({ x: w.x, y: Math.min(w.y, P.HEIGHT - .4), t: 0, reason: event });
         emit(w.x, w.y - .3, '#b7d1d3', 13);
@@ -126,6 +205,7 @@
     squishes = squishes.filter(s => s.t < .82);
     if (spawned >= level.count && !walkers.some(w => w.alive && !w.rescued)) {
       finished = true; paused = true;
+      if (rescued >= level.target) recordCosmetic('level', Number(els.level.value));
       notice(rescued >= level.target ? 'Target rescued! Restart to try another solution.' :
         'No Graphlings remain. Restart and try another route.');
     }
@@ -219,8 +299,10 @@
   }
   function pointerCoords(event) {
     const rect = canvas.getBoundingClientRect();
-    return { x: (event.clientX - rect.left) / rect.width * P.WIDTH,
-      y: (event.clientY - rect.top) / rect.height * P.HEIGHT };
+    const screenX = (event.clientX - rect.left) / rect.width * W;
+    const screenY = (event.clientY - rect.top) / rect.height * H;
+    const cam = camera();
+    return { x: (screenX - cam.x) / (U * cam.scale), y: (screenY - cam.y) / (U * cam.scale) };
   }
   function paint(event) {
     if (!painting || !editMode) return;
@@ -338,42 +420,17 @@
     ctx.fillText(isExit ? 'EXIT' : 'IN', 0, -62); ctx.restore();
   }
   function drawCreature(w) {
-    const x = w.x * U, y = w.y * U;
-    const bounce = w.grounded && !w.specialist ? Math.sin(elapsed * 16 + w.phase) * 1.2 : 0;
-    ctx.save(); ctx.translate(x, y + bounce);
-    if (w.shrug > 0) {
-      ctx.globalAlpha = Math.min(1, w.shrug * 2);
-      ctx.fillStyle = '#325e63'; ctx.font = 'bold 14px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText('?', 0, -35 - Math.sin(w.shrug * 6) * 6); ctx.globalAlpha = 1;
-    }
-    if (w.celebrate > 0) {
-      ctx.fillStyle = '#438970'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText('★', 0, -34 - Math.sin(w.celebrate * 8) * 4);
-    }
-    ctx.strokeStyle = '#405e5b'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-6, -4); ctx.lineTo(-6, 0); ctx.moveTo(5, -4); ctx.lineTo(6, 0); ctx.stroke();
-    ctx.fillStyle = ['#85cdb3', '#f1c77e', '#9ccbe1', '#cbb4e7'][w.id % 4];
-    ctx.beginPath(); ctx.ellipse(0, -12, 11, 12, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#4d7977'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-6, -22); ctx.lineTo(-9, -28);
-    ctx.moveTo(6, -22); ctx.lineTo(9, -28); ctx.stroke();
-    ctx.fillStyle = '#244048'; ctx.beginPath(); ctx.arc(w.dir * 4 - 3, -15, 1.5, 0, Math.PI * 2);
-    ctx.arc(w.dir * 4 + 3, -15, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#244048'; ctx.beginPath(); ctx.arc(w.dir * 4, -9, 2, 0, Math.PI); ctx.stroke();
-    if (w.specialist) {
-      ctx.fillStyle = w.specialist.kind === 'rampwright' ? '#eac06d' : '#adc3c7';
-      ctx.fillRect(-10, -26, 20, 4); ctx.fillRect(-7, -30, 14, 5);
-      ctx.save(); ctx.translate(w.dir * 13, -9); ctx.rotate(Math.sin(elapsed * 19) * .45);
-      ctx.strokeStyle = '#5d665f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0, -15); ctx.stroke();
-      ctx.fillStyle = w.specialist.kind === 'rampwright' ? '#c99f53' : '#82969a';
-      ctx.fillRect(-6, -18, 12, 5); ctx.restore();
-    }
-    ctx.restore();
+    const v = w.visual || { phase: w.phase || 0, moving: false, turn: 0, land: 0 };
+    A.draw(ctx,profile.equipped,{x:w.x*U,y:w.y*U,scale:1,id:w.id,dir:w.dir,
+      grounded:w.grounded,phase:v.phase,turn:v.turn,land:v.land,moving:v.moving,
+      specialist:w.specialist?.kind,shrug:w.shrug,celebrate:w.celebrate,
+      time:reducedMotion?0:elapsed});
     if (w.specialist) {
       const left = Math.max(0, w.specialist.ticks - w.specialist.travelled);
+      const x = w.x * U, y = w.y * U;
       ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
       const label = (w.specialist.kind === 'rampwright' ? 'R' : 'T') + ' · ' + fmt(left);
-      ctx.fillStyle = '#fffbe9'; ctx.fillRect(x - 20, y - 54, 40, 16);
+      ctx.fillStyle = '#fffbe9'; ctx.beginPath();ctx.roundRect(x - 22, y - 55, 44, 17, 6);ctx.fill();
       ctx.fillStyle = '#375d57'; ctx.fillText(label, x, y - 42);
     }
   }
@@ -382,13 +439,23 @@
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
     gradient.addColorStop(0, '#bfdddd'); gradient.addColorStop(1, '#e4e9d9');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, W, H);
-    drawCloud(125, 99, 1); drawCloud(562, 88, .75); drawCloud(940, 133, 1.1);
+    // Soft parallax clouds and sun. Decorative scenery stays behind the physics world.
+    const drift = reducedMotion ? 0 : Math.sin(elapsed / 7) * 15;
+    ctx.globalAlpha = .42;
+    ctx.fillStyle = '#f9edbf';ctx.beginPath();ctx.arc(W*.78,H*.22,61,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha = 1;
+    drawCloud(125 + drift, 99, 1); drawCloud(562 - drift*.8, 88, .75); drawCloud(940 + drift*.5, 133, 1.1);
     ctx.fillStyle = '#afc8b8'; ctx.beginPath(); ctx.moveTo(0, 384);
     ctx.quadraticCurveTo(160, 245, 345, 377); ctx.quadraticCurveTo(540, 301, 719, 390);
     ctx.quadraticCurveTo(900, 267, W, 379); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
     ctx.fillStyle = '#91b6a2'; ctx.beginPath(); ctx.moveTo(0, 440);
     ctx.quadraticCurveTo(200, 350, 400, 445); ctx.quadraticCurveTo(700, 350, 880, 432);
     ctx.quadraticCurveTo(988, 390, W, 438); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+    const cam = camera();
+    // A slightly smaller, centred stage makes the entire scene easier to take in.
+    ctx.fillStyle='#ffffff22';ctx.strokeStyle='#628e8344';ctx.lineWidth=1.2;ctx.beginPath();ctx.roundRect(cam.x-7,cam.y-5,W*cam.scale+14,H*cam.scale+12,14);ctx.fill();ctx.stroke();
+    ctx.save();ctx.beginPath();ctx.rect(cam.x,cam.y,W*cam.scale,H*cam.scale);ctx.clip();
+    ctx.translate(cam.x,cam.y);ctx.scale(cam.scale,cam.scale);
     for (let y = 0; y < P.HEIGHT; y++) for (let x = 0; x < P.WIDTH; x++) {
       const tile = level.grid[y][x]; if (tile !== P.TILE.EMPTY) drawTile(x, y, tile);
     }
@@ -413,6 +480,8 @@
       }
     }
     ctx.globalAlpha = 1;
+    ctx.restore();
+    drawWardrobePreview();
     if (paused) {
       ctx.fillStyle = '#17353aaf'; ctx.fillRect(0, 0, W, 35);
       ctx.fillStyle = '#f5faf6'; ctx.textAlign = 'left'; ctx.font = 'bold 15px system-ui';
@@ -444,7 +513,7 @@
   canvas.addEventListener('pointermove', paint);
   canvas.addEventListener('pointerup', () => { painting = false; });
   canvas.addEventListener('pointercancel', () => { painting = false; });
-  els.pause.addEventListener('click', () => { if (selected) cancelEditor(); setPaused(!paused); });
+  els.pause.addEventListener('click', () => { if (selected && !paused) cancelEditor(); setPaused(!paused); });
   els.step.addEventListener('click', () => {
     if (selected) cancelEditor(); setPaused(true);
     for (let i = 0; i < 12 && !finished; i++) simulationStep(1 / 120);
@@ -452,6 +521,14 @@
   });
   els.speed.addEventListener('change', () => { speed = Number(els.speed.value); });
   els.reset.addEventListener('click', resetSimulation);
+  wardrobeOpen.addEventListener('click',()=>{wardrobeWasPaused=paused;setPaused(true);freshUnlocks=0;newParts.hidden=true;renderWardrobe();wardrobe.showModal();});
+  wardrobe.addEventListener('close',()=>{if(!wardrobeWasPaused&&!finished&&!selected&&!editMode)setPaused(false);});
+  wardrobeClose.addEventListener('click',()=>wardrobe.close());
+  wardrobe.addEventListener('click',event=>{if(event.target===wardrobe)wardrobe.close();});
+  $('resetLook').addEventListener('click',()=>{
+    for(const [category,id] of Object.entries(A.DEFAULT)) A.equip(profile,category,id);
+    A.save(profile);renderWardrobe();
+  });
   els.level.addEventListener('change', loadLevel);
   els.restore.addEventListener('click', loadLevel);
   els.toggleEdit.addEventListener('click', () => setPainting(!editMode));
