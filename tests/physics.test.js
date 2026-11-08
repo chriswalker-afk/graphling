@@ -43,17 +43,16 @@ test('global line coordinates use entrance as origin and y up',()=>{
 });
 test('distant graph shrugs without consuming a specialist',()=>{
   const l=P.makeLevel(0), w=P.walker(4,15,0);
-  const result=P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:5,ticks:6});
+  const result=P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:5});
   assert.equal(result.reason,'too-far');
   assert.equal(w.specialist,null);
   assert.ok(w.shrug>0);
   assert.equal(l.paths.length,0);
 });
-test('unwalkable gradients, excessive ticks and over-steep joining ramps are rejected',()=>{
+test('unwalkable gradients and over-steep joining ramps are rejected',()=>{
   const l=P.makeLevel(0),w=P.walker(4,15,0);
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:1.1,c:-2.2,ticks:3}).reason,'too-steep');
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0,ticks:17}).reason,'invalid-ticks');
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:1,c:-1.7,ticks:2}).reason,'join-too-steep');
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:1.1,c:-2.2}).reason,'too-steep');
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:1,c:-1.7}).reason,'join-too-steep');
   assert.equal(w.specialist,null);
 });
 test('ordinary walker reverses at walls',()=>{
@@ -82,11 +81,11 @@ test('ordinary walkers reach an exit',()=>{
 });
 test('Rampwright builds a persistent bridge and returns to ordinary walking',()=>{
   const l=P.makeLevel(0),w=P.walker(10,15,0);
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0,ticks:9}).ok,true);
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0}).ok,true);
   finishJob(l,w);
   assert.equal(w.specialist,null);
   assert.equal(w.lastAction.reason,'complete');
-  assert.ok(Math.abs(w.x-19)<.04);
+  assert.ok(Math.abs(w.x-20)<.04);
   assert.equal(P.supportAt(l,14,15),true);
   const follower=P.walker(10,15,1);
   walk(l,follower,4);
@@ -95,7 +94,7 @@ test('Rampwright builds a persistent bridge and returns to ordinary walking',()=
 test('ordinary Graphlings can walk on rising straight-line construction',()=>{
   const l=empty();floor(l,0,7,15);
   const w=P.walker(5,15,0);
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:.5,c:-1.5,ticks:7}).ok,true);
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:.5,c:-1.5}).ok,true);
   finishJob(l,w);assert.equal(w.lastAction.reason,'complete');
   const follower=P.walker(5,15,1);
   walk(l,follower,2.4);
@@ -103,14 +102,14 @@ test('ordinary Graphlings can walk on rising straight-line construction',()=>{
 });
 test('left-facing Rampwright travels toward decreasing global x',()=>{
   const l=empty();floor(l);
-  const w=P.walker(10,15,0);w.dir=-1;
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0,ticks:3}).ok,true);
+  const w=P.walker(20,15,0);w.dir=-1;
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0}).ok,true);
   finishJob(l,w);
-  assert.ok(Math.abs(w.x-7)<.04);
+  assert.ok(Math.abs(w.x-10)<.04);
 });
 test('Trencher excavates earth wall, leaves a floor, then becomes ordinary',()=>{
   const l=P.makeLevel(1),w=P.walker(11,15,0);
-  assert.equal(P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0,ticks:8}).ok,true);
+  assert.equal(P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0}).ok,true);
   finishJob(l,w);
   assert.ok(w.x>17);
   assert.equal(P.tileAt(l,14,14),TILE.EMPTY);
@@ -121,36 +120,51 @@ test('Trencher excavates earth wall, leaves a floor, then becomes ordinary',()=>
 });
 test('Trencher stops at indestructible bedrock without erasing it',()=>{
   const l=empty();floor(l);P.put(l.grid,6,14,TILE.ROCK);
-  const w=P.walker(5,15,0);P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0,ticks:6});
+  const w=P.walker(5,15,0);P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0});
   finishJob(l,w);assert.equal(P.tileAt(l,6,14),TILE.ROCK);
   assert.equal(w.lastAction.reason,'bedrock');assert.ok(w.x<6);
 });
 test('Trencher cannot create an unsupported tunnel through air',()=>{
   const l=empty();floor(l,0,5);
   const w=P.walker(5,15,0);
-  P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0,ticks:5});
+  P.assignSpecialist(l,w,{kind:'trencher',m:0,c:0});
   finishJob(l,w);assert.ok(w.x<6);
   assert.equal(w.lastAction.reason,'unsupported');
 });
 test('Rampwright stops at solid obstacles; spikes squish assigned workers',()=>{
   const a=empty();floor(a);P.put(a.grid,6,14,TILE.EARTH);
-  const builder=P.walker(5,15,0);P.assignSpecialist(a,builder,{kind:'rampwright',m:0,c:0,ticks:6});
+  const builder=P.walker(5,15,0);P.assignSpecialist(a,builder,{kind:'rampwright',m:0,c:0});
   finishJob(a,builder);assert.equal(builder.lastAction.reason,'blocked');
   const b=empty();floor(b);P.put(b.grid,6,14,TILE.SPIKE);
-  const other=P.walker(5,15,0);P.assignSpecialist(b,other,{kind:'rampwright',m:0,c:0,ticks:6});
+  const other=P.walker(5,15,0);P.assignSpecialist(b,other,{kind:'rampwright',m:0,c:0});
   walk(b,other,1);assert.equal(other.death,'spikes');
 });
-test('preview is non-destructive and reports excavated material',()=>{
-  const l=P.makeLevel(1),w=P.walker(11,15,0);
-  const before=JSON.stringify(l.grid);
-  const result=P.previewAction(l,w,{kind:'trencher',m:0,c:0,ticks:7});
-  assert.equal(result.ok,true);assert.ok(result.removed>0);
-  assert.equal(JSON.stringify(l.grid),before);
-  assert.equal(l.paths.length,0);assert.equal(w.specialist,null);
+test('every assigned specialist has an unchangeable ten-energy budget',()=>{
+  const l=empty();floor(l);
+  const w=P.walker(10,15,0);
+  assert.equal(P.ENERGY,10);
+  assert.equal(P.previewAction,undefined);
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0,ticks:2,energy:99}).ok,true);
+  assert.equal(w.specialist.energy,10);
+  walk(l,w,1);assert.ok(w.specialist);
+  assert.ok(w.specialist.travelled>2 && w.specialist.travelled<3);
+  assert.ok(w.specialist.energy-w.specialist.travelled>7);
+  finishJob(l,w);
+  assert.equal(w.lastAction.reason,'complete');
+  assert.ok(Math.abs(w.lastAction.travelled-10)<.04);
+  assert.ok(Math.abs(w.x-20)<.04);
+});
+test('blocked worker forfeits remaining energy rather than continuing',()=>{
+  const l=empty();floor(l);P.put(l.grid,6,14,TILE.ROCK);
+  const w=P.walker(5,15,0);
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m:0,c:0}).ok,true);
+  finishJob(l,w);
+  assert.equal(w.lastAction.reason,'blocked');
+  assert.ok(w.lastAction.travelled<2);
 });
 test('Spike Garden is solvable with one well-chosen mathematical ramp',()=>{
-  const l=P.makeLevel(2),w=P.walker(8,15,0),m=3/13,c=-18/13;
-  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m,c,ticks:13}).ok,true);
+  const l=P.makeLevel(2),w=P.walker(8,15,0),m=3/10,c=-9/5;
+  assert.equal(P.assignSpecialist(l,w,{kind:'rampwright',m,c}).ok,true);
   finishJob(l,w);assert.equal(w.lastAction.reason,'complete');
   assert.ok(Math.abs(w.y-12)<.02);
   walk(l,w,7);assert.equal(w.rescued,true);
