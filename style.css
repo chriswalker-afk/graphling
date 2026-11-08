@@ -39,3 +39,8 @@
 
 .pan-hint{display:none;text-align:center;background:#e9f3ed;color:#4a766a;font-size:11px;padding:5px}
 @media(max-width:680px){.pan-hint{display:block}}
+
+/* Fixed-energy, calculation-first specialist editor */
+.energy-budget{display:flex;align-items:center;gap:11px;margin:13px 0 9px;padding:11px 12px;border:1px solid #d7dcc4;border-radius:11px;background:#f8f4e8;color:#56503b}
+.energy-budget .energy-icon{display:grid;place-items:center;flex:none;width:34px;height:34px;background:#f4df9c;border-radius:10px;font-size:19px}
+.energy-budget strong,.energy-budget small{display:block}.energy-budget strong{font-size:14px}.energy-budget small{font-size:11px;line-height:1.4;margin-top:2px;color:#746955}
