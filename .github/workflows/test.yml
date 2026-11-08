@@ -16,5 +16,6 @@ jobs:
           node --check src/physics.js
           node --check src/game.js
           node --check src/avatar.js
+          node --check src/planning-guides.js
       - name: Physics, animation and cosmetic progression tests
         run: node --test tests/*.test.js
