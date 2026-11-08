@@ -5,7 +5,7 @@
   const WIDTH = 35, HEIGHT = 18;
   const SPEED = 2.15, GRAVITY = 25, TERMINAL = 18, SAFE_FALL = 4;
   const BODY_RADIUS = 0.19, BODY_HEIGHT = 0.64;
-  const PROXIMITY = 0.35, MAX_SLOPE = 1, MAX_TICKS = 16, JOIN_DISTANCE = 0.75;
+  const PROXIMITY = 0.35, MAX_SLOPE = 1, ENERGY = 10, JOIN_DISTANCE = 0.75;
   const SOLID = new Set([TILE.EARTH, TILE.ROCK, TILE.BRIDGE]);
 
   function createGrid() { return Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(TILE.EMPTY)); }
@@ -123,11 +123,10 @@
     w.specialist = null;
     if (reason === 'complete') w.celebrate = 0.7;
   }
-  function validateSpecialist(level, w, { kind, m, c, ticks }) {
+  function validateSpecialist(level, w, { kind, m, c }) {
     if (kind !== 'rampwright' && kind !== 'trencher') return { ok: false, reason: 'unknown-specialist' };
     if (!w || !w.alive || w.rescued || w.specialist) return { ok: false, reason: 'unavailable' };
     if (!Number.isFinite(m) || !Number.isFinite(c)) return { ok: false, reason: 'invalid-equation' };
-    if (!Number.isInteger(ticks) || ticks < 1 || ticks > MAX_TICKS) return { ok: false, reason: 'invalid-ticks' };
     if (Math.abs(m) > MAX_SLOPE + 1e-8) return { ok: false, reason: 'too-steep' };
     if (!w.grounded) return { ok: false, reason: 'not-grounded' };
     const joinDelta = w.y - curveY(level, m, c, w.x);
@@ -144,8 +143,10 @@
       if (w && valid.reason === 'too-far') w.shrug = 1.1;
       return valid;
     }
-    const { kind, m, c, ticks } = settings;
-    w.specialist = { kind, m, c, ticks, travelled: 0,
+    const { kind, m, c } = settings;
+    // Every job starts with the same, non-configurable 10-energy allowance.
+    // One energy is spent per horizontal world unit; blocked jobs forfeit the remainder.
+    w.specialist = { kind, m, c, energy: ENERGY, travelled: 0,
       joinDelta: w.y - curveY(level, m, c, w.x), startX: w.x, startY: w.y,
       lastMaterialAt: 0 };
     w.lastAction = null;
@@ -201,7 +202,7 @@
   function workStep(level, w, h) {
     const job = w.specialist;
     if (!job) return null;
-    const distance = Math.min(SPEED * h, job.ticks - job.travelled);
+    const distance = Math.min(SPEED * h, job.energy - job.travelled);
     if (distance <= 1e-7) { stopSpecialist(w, 'complete'); return null; }
     const nx = w.x + w.dir * distance;
     const ny = routeY(level, job, nx);
@@ -235,7 +236,7 @@
     w.x = nx; w.y = ny; w.vy = 0; w.grounded = true;
     job.travelled += distance;
     if (hazardous(level, w.x, w.y)) return outcome(w, 'spikes');
-    if (job.travelled >= job.ticks - 1e-6) stopSpecialist(w, 'complete');
+    if (job.travelled >= job.energy - 1e-6) stopSpecialist(w, 'complete');
     return null;
   }
   function firstLandingY(level, x, start, end) {
@@ -293,30 +294,10 @@
     }
     return null;
   }
-  function previewAction(level, w, settings) {
-    const valid = validateSpecialist(level, w, settings);
-    const points = [];
-    if (!valid.ok) return { ok: false, reason: valid.reason, deviation: valid.deviation, points };
-    const shadow = { ...level, grid: level.grid.map(row => row.slice()),
-      paths: (level.paths || []).map(p => ({ ...p })) };
-    const actor = { ...w, specialist: null, lastAction: null };
-    assignSpecialist(shadow, actor, settings);
-    points.push({ x: actor.x, y: actor.y });
-    const initialMaterials = shadow.grid.flat().filter(t => t === TILE.EARTH).length;
-    const maxSteps = Math.ceil(settings.ticks / SPEED * 120) + 3;
-    for (let i = 0; i < maxSteps && actor.specialist && actor.alive; i++) {
-      const event = advance(shadow, actor, 1 / 120);
-      if (i % 4 === 0 || !actor.specialist || event) points.push({ x: actor.x, y: actor.y });
-    }
-    return { ok: true, points, reason: actor.death || actor.lastAction?.reason || 'unknown',
-      endpoint: { x: actor.x, y: actor.y },
-      removed: initialMaterials - shadow.grid.flat().filter(t => t === TILE.EARTH).length,
-      paths: shadow.paths, alive: actor.alive };
-  }
   const API = { TILE, WIDTH, HEIGHT, SPEED, GRAVITY, SAFE_FALL, BODY_HEIGHT, BODY_RADIUS,
-    PROXIMITY, MAX_SLOPE, MAX_TICKS, createGrid, makeLevel, put, tileAt, isSolid, supportAt,
+    PROXIMITY, MAX_SLOPE, ENERGY, createGrid, makeLevel, put, tileAt, isSolid, supportAt,
     surfacesNear, hazardous, walker, advance, mathX, mathY, curveY, parseCoefficient,
-    validateSpecialist, assignSpecialist, previewAction, routeY, appendPath, stopSpecialist };
+    validateSpecialist, assignSpecialist, routeY, appendPath, stopSpecialist };
   root.GraphlingPhysics = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
