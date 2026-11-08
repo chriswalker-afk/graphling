@@ -22,20 +22,20 @@
       name = 'Bridge the Gap';
       fill(grid, 11, 17, 15, 17, TILE.EMPTY);
       charges = { rampwright: 2, trencher: 1 };
-      hint = 'A horizontal walkway can span the gap. Select a Graphling before the edge, then use a Rampwright.';
+      hint = 'There is no ground across the gap. Find a route that will let the crew cross safely.';
     } else if (index === 1) {
       name = 'The Earth Wall';
       fill(grid, 12, 17, 13, 14, TILE.EARTH);
       fill(grid, 23, 25, 10, 11, TILE.ROCK); // Visible, indestructible overhead obstacle.
       charges = { rampwright: 1, trencher: 2 };
-      hint = 'The wall is earth, not bedrock. A horizontal Trencher can clear a passage through it.';
+      hint = 'Earth can be excavated but bedrock cannot. Plan a passage that leaves a walkable floor.';
     } else {
       name = 'Spike Garden';
-      fill(grid, 13, 18, 14, 14, TILE.SPIKE);
-      fill(grid, 21, 34, 12, 14, TILE.ROCK);
+      fill(grid, 13, 17, 14, 14, TILE.SPIKE);
+      fill(grid, 18, 34, 12, 14, TILE.ROCK);
       exitY = 12;
       charges = { rampwright: 3, trencher: 1 };
-      hint = 'Build upwards before reaching the spikes. The destination is three units above the entrance.';
+      hint = 'The raised platform is three units higher than the entrance. Spikes cannot be dug away.';
     }
     return {
       grid, paths: [], entrance: { x: 2, y: 15 }, exit: { x: 32, y: exitY },
