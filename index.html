@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#192c36">
+  <title>Graphlings — World Lab</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./src/physics.js" defer></script>
+  <script src="./src/game.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div><span class="eyebrow">GRAPHLINGS · PROTOTYPE A</span><h1>World Lab</h1><p>Little feet. Big problems.</p></div>
+      <div class="toolbar">
+        <label for="level">Landscape</label><select id="level"><option value="0">01 · First steps</option><option value="1">02 · Spike garden</option><option value="2">03 · The long drop</option></select>
+        <button id="reset" type="button">Restart</button>
+      </div>
+    </header>
+    <main>
+      <section class="game-panel" aria-label="Graphlings world">
+        <div class="scorebar">
+          <span><b id="rescued">0</b> rescued</span><span><b id="lost">0</b> squished</span><span><b id="active">0</b> walking</span><span><b id="remaining">0</b> waiting</span><span class="goal">Target: <b id="target">0</b></span>
+        </div>
+        <div class="viewport"><canvas id="world" width="1120" height="570" aria-label="Side-view Graphlings simulation with terrain, an entrance, an exit, and moving creatures">Your browser needs canvas support.</canvas></div>
+        <div class="controlbar"><button id="pause" type="button" aria-pressed="false">Pause</button><button id="step" type="button">Step</button><label for="speed">Speed</label><select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select><span class="control-note" id="message" aria-live="polite">Watch the Graphlings explore the landscape.</span></div>
+      </section>
+      <aside class="sidebar">
+        <h2>Terrain workshop</h2><p>Pause the simulation to shape the world. Click or drag on the grid to paint tiles, then press Play.</p>
+        <fieldset id="tools"><legend>Paint with</legend>
+          <label><input type="radio" name="brush" value="earth" checked><span class="swatch earth"></span>Earth <small>diggable later</small></label>
+          <label><input type="radio" name="brush" value="rock"><span class="swatch rock"></span>Bedrock <small>indestructible</small></label>
+          <label><input type="radio" name="brush" value="bridge"><span class="swatch bridge"></span>Walkway <small>constructed</small></label>
+          <label><input type="radio" name="brush" value="spike"><span class="swatch spike"></span>Spikes <small>instant squish</small></label>
+          <label><input type="radio" name="brush" value="empty"><span class="swatch empty"></span>Erase <small>open air</small></label>
+        </fieldset>
+        <label class="toggle"><input type="checkbox" id="grid"> Show coordinate grid</label>
+        <button id="restore" type="button" class="secondary">Restore landscape</button>
+        <div class="info"><h3>Physics rules</h3><p>Graphlings walk, turn at walls, fall through gaps and squish on spikes or after a drop greater than <strong>4 units</strong>. Short drops are safe. Slopes and mathematical specialists come next.</p><p>The level entrance is the origin for future graph equations. Each tile represents one unit.</p></div>
+        <div class="info"><h3>Testing</h3><p>Try extending the walkway in <em>Spike garden</em> or bridging the pit in <em>First steps</em>. Terrain painting is a development tool, not a Graphling specialist ability.</p></div>
+      </aside>
+    </main>
+    <footer>Pass A — Physics sandbox · Pass B will add Rampwrights, Trenchers and linear equations.</footer>
+  </div>
+</body>
+</html>

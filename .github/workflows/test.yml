@@ -1,0 +1,19 @@
+name: Physics checks
+on:
+  push:
+    branches: [main, feat/pass-a-world-physics]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/physics.js
+          node --check src/game.js
+      - name: Test physics
+        run: node --test tests/physics.test.js
