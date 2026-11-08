@@ -13,7 +13,7 @@
     step: $('step'), speed: $('speed'), grid: $('grid'), message: $('message'),
     rescued: $('rescued'), lost: $('lost'), active: $('active'), remaining: $('remaining'), target: $('target'),
     levelHint: $('levelHint'), editor: $('editor'), cancel: $('cancel'), plotForm: $('plotForm'),
-    m: $('m'), c: $('c'), ticks: $('ticks'), tickValue: $('tickValue'), position: $('position'),
+    m: $('m'), c: $('c'), position: $('position'),
     facing: $('facing'), equation: $('equation'), previewNote: $('previewNote'), activate: $('activate'),
     toggleEdit: $('toggleEdit'), tools: $('tools'), countRamp: $('count-rampwright'),
     countTrench: $('count-trencher'),
@@ -22,7 +22,7 @@
   const paintTypes = { earth: P.TILE.EARTH, rock: P.TILE.ROCK, bridge: P.TILE.BRIDGE,
     spike: P.TILE.SPIKE, empty: P.TILE.EMPTY };
   const feedback = {
-    complete: 'The Graphling finished its allotted ticks and returned to ordinary walking.',
+    complete: 'The Graphling used its 10 energy and returned to ordinary walking.',
     blocked: 'Construction met solid terrain. The Graphling stopped and returned to walking.',
     bedrock: 'The drill struck indestructible bedrock. The Graphling stopped digging.',
     unsupported: 'No supporting ground for a tunnel. The Graphling returned to walking.',
@@ -34,7 +34,7 @@
   };
   let level, baseline, charges, walkers, spawned, spawnClock, rescued, lost;
   let paused = false, finished = false, speed = 1, elapsed = 0, accumulator = 0, frameCount = 0;
-  let chosenRole = 'rampwright', selected = null, preview = null;
+  let chosenRole = 'rampwright', selected = null;
   let editMode = false, brush = 'earth', painting = false, last = performance.now();
   let particles = [], squishes = [];
   let wardrobeCategory = 'feet', profile = A.load(), freshUnlocks = 0, wardrobeWasPaused = false;
@@ -116,7 +116,7 @@
     walkers = []; spawned = rescued = lost = 0; spawnClock = .4;
     elapsed = 0; accumulator = frameCount = 0; particles = []; squishes = [];
     unlockToast.hidden = true;
-    paused = false; finished = false; selected = null; preview = null;
+    paused = false; finished = false; selected = null;
     els.editor.hidden = true;
     notice('Click a walking Graphling to pause and give it a specialist role.');
     sync();
@@ -152,7 +152,7 @@
     els.tools.disabled = !value;
     canvas.classList.toggle('paint-mode', value);
     if (value) {
-      selected = null; preview = null; els.editor.hidden = true;
+      selected = null; els.editor.hidden = true;
       if (level) setPaused(true);
       notice('Terrain brush active. Painting is a sandbox tool, not a specialist action.');
     }
@@ -224,55 +224,37 @@
     selected = nearest;
     setPaused(true);
     els.editor.hidden = false;
-    // Start with a horizontal graph through the selected Graphling.
-    els.m.value = '0'; els.c.value = fmt(P.mathY(level, selected.y)); els.ticks.value = '8';
+    // The student must calculate both coefficients; do not prefill a correct intercept.
+    els.m.value = ''; els.c.value = '';
     els.position.textContent = '(' + fmt(P.mathX(level, selected.x)) + ', ' + fmt(P.mathY(level, selected.y)) + ')';
     els.facing.textContent = selected.dir > 0 ? 'Facing right →' : '← Facing left';
-    updatePreview();
-    notice('Simulation paused. Plot a line, preview it, then assign the specialist.');
+    updateEquation();
+    notice('Simulation paused. Use the coordinate guides to calculate your equation.');
   }
   function formSettings() {
     return { kind: chosenRole, m: P.parseCoefficient(els.m.value),
-      c: P.parseCoefficient(els.c.value), ticks: Number(els.ticks.value) };
+      c: P.parseCoefficient(els.c.value) };
   }
-  function previewMessage(p) {
-    if (!p.ok) {
-      if (p.reason === 'too-far') return ['The line is too far away (' + fmt(p.deviation) +
-        ' units). Trying it makes the Graphling shrug and keep walking; no charge is used.', 'warn'];
-      if (p.reason === 'too-steep') return ['This slope is too steep. Physical workers require |m| ≤ 1.', 'warn'];
-      if (p.reason === 'join-too-steep') return ['The line is nearby, but joining it would make the initial slope too steep. Adjust the equation or wait for a better position.', 'warn'];
-      if (p.reason === 'not-grounded') return ['This Graphling is falling. Select one standing on a surface.', 'warn'];
-      if (p.reason === 'invalid-ticks') return ['Choose between 1 and 16 ticks.', 'warn'];
-      return ['Enter valid coefficients for the line.', 'warn'];
-    }
-    const endpoint = '(' + fmt(P.mathX(level, p.endpoint.x)) + ', ' + fmt(P.mathY(level, p.endpoint.y)) + ')';
-    if (p.reason === 'complete') return ['Preview ends at ' + endpoint + ' after the available ticks. The terrain changes persist.', ''];
-    if (p.reason === 'spikes' || p.reason === 'fall') return ['Danger: this route reaches a hazard. The Graphling will squish!', 'danger'];
-    return [(feedback[p.reason] || 'The worker stops early.') + ' Predicted endpoint: ' + endpoint + '.', 'warn'];
-  }
-  function updatePreview() {
+  function updateEquation() {
     if (!selected || els.editor.hidden) return;
     const settings = formSettings();
-    els.tickValue.textContent = settings.ticks;
-    els.equation.textContent = settings.m === null || settings.c === null ? 'Enter m and c' :
-      'y = (' + els.m.value.trim() + ')x + (' + els.c.value.trim() + ')';
+    const valid = settings.m !== null && settings.c !== null;
+    els.equation.textContent = valid ?
+      'y = (' + els.m.value.trim() + ')x + (' + els.c.value.trim() + ')' :
+      'Enter a gradient and intercept';
     els.previewNote.className = 'preview-note';
-    els.activate.disabled = charges[chosenRole] <= 0 || settings.m === null || settings.c === null;
+    els.activate.textContent = 'Assign ' + (chosenRole === 'rampwright' ? 'Rampwright' : 'Trencher');
+    els.activate.disabled = charges[chosenRole] <= 0 || !valid;
     if (charges[chosenRole] <= 0) {
-      preview = null; els.previewNote.textContent = 'No ' + chosenRole + ' assignments remain in this level.';
-      return;
+      els.previewNote.textContent = 'No ' + chosenRole + ' assignments remain in this level.';
+      els.previewNote.classList.add('warn');
+    } else if (!valid) {
+      els.previewNote.textContent = 'Use numbers or fractions (e.g. 1/2, -3/4). Work out m and c from the coordinates.';
+    } else {
+      // Never evaluate or draw the entered equation before the player commits.
+      // Only known rule limits are stated; success, hazards and endpoints are not predicted.
+      els.previewNote.textContent = 'Dotted marks show terrain heights and edges, not your line. Calculate the route before assigning.';
     }
-    if (settings.m === null || settings.c === null) {
-      preview = null; els.previewNote.textContent = 'Use a number or fraction such as 1/2, -3/4 or 0.5.';
-      els.previewNote.classList.add('warn'); return;
-    }
-    preview = P.previewAction(level, selected, settings);
-    const [text, severity] = previewMessage(preview);
-    els.previewNote.textContent = text;
-    if (severity) els.previewNote.classList.add(severity);
-    if (preview.reason === 'too-steep' || preview.reason === 'not-grounded' || preview.reason === 'join-too-steep') els.activate.disabled = true;
-    els.activate.textContent = preview.reason === 'too-far' ? 'Try anyway (shrug)' : 'Assign ' +
-      (chosenRole === 'rampwright' ? 'Rampwright' : 'Trencher');
   }
   function commitJob(event) {
     event.preventDefault();
@@ -283,18 +265,18 @@
     if (!result.ok) {
       if (result.reason === 'too-far') {
         notice('Shrug! The Graphling is not close enough to this line. No specialist used.');
-        selected = null; preview = null; els.editor.hidden = true; setPaused(false);
-      } else { updatePreview(); notice('The route cannot be started: ' + result.reason + '.'); }
+        selected = null; els.editor.hidden = true; setPaused(false);
+      } else { updateEquation(); notice('The route cannot be started: ' + result.reason + '.'); }
       return;
     }
     charges[chosenRole]--;
     const name = chosenRole === 'rampwright' ? 'Rampwright' : 'Trencher';
-    notice(name + ' assigned! The Graphling is now physically following the line.');
-    selected = null; preview = null; els.editor.hidden = true;
+    notice(name + ' assigned with 10 energy. Watch the line unfold as it works.');
+    selected = null; els.editor.hidden = true;
     setPaused(false); sync();
   }
   function cancelEditor() {
-    selected = null; preview = null; els.editor.hidden = true;
+    selected = null; els.editor.hidden = true;
     notice('Editor closed. Press Play to resume walking.');
   }
   function pointerCoords(event) {
@@ -372,31 +354,45 @@
     ctx.fillText('y', level.entrance.x * U + 7, 17);
     ctx.restore();
   }
-  function drawGraphPreview() {
+  function drawPlanningGuides() {
     if (!selected || els.editor.hidden) return;
-    const settings = formSettings();
-    if (settings.m === null || settings.c === null) return;
+    const hints = globalThis.GraphlingGuides.guides(level, selected, P.ENERGY);
+    if (!hints) return;
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
-    ctx.setLineDash([7, 6]); ctx.strokeStyle = '#2587a1c7'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, P.curveY(level, settings.m, settings.c, 0) * U);
-    ctx.lineTo(W, P.curveY(level, settings.m, settings.c, P.WIDTH) * U); ctx.stroke();
+    ctx.lineCap = 'round'; ctx.lineWidth = 1.9; ctx.strokeStyle = '#327f83aa';
+    ctx.setLineDash([4, 7]);
+    // Short crosshairs show the selected Graphling's position, not the proposed graph.
+    const sx = selected.x * U, sy = selected.y * U;
+    ctx.beginPath();
+    ctx.moveTo(sx - 30, sy); ctx.lineTo(sx + 30, sy);
+    ctx.moveTo(sx, sy - 29); ctx.lineTo(sx, sy + 13); ctx.stroke();
     ctx.setLineDash([]);
-    if (preview && preview.points && preview.points.length > 1) {
-      const isDanger = preview.reason === 'spikes' || preview.reason === 'fall';
-      ctx.strokeStyle = isDanger ? '#be514c' : chosenRole === 'rampwright' ? '#e4aa52' : '#7c6c5b';
-      ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.globalAlpha = .85; ctx.beginPath();
-      preview.points.forEach((point, i) => (i === 0 ? ctx.moveTo : ctx.lineTo).call(ctx, point.x * U, point.y * U));
-      ctx.stroke();
-      const end = preview.points[preview.points.length - 1];
-      ctx.globalAlpha = 1; ctx.fillStyle = isDanger ? '#c84d4b' : '#f8e59a';
-      ctx.strokeStyle = '#235d56'; ctx.lineWidth = 2; ctx.beginPath();
-      ctx.arc(end.x * U, end.y * U, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ecfbf7';ctx.strokeStyle='#287e76';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();ctx.stroke();
+    // The distant dashed line indicates energy range horizontally, never the worker's endpoint.
+    const rx = hints.reachX * U;
+    ctx.strokeStyle = '#db9e4ca1';ctx.lineWidth=1.5;ctx.setLineDash([3, 8]);
+    ctx.beginPath();ctx.moveTo(rx,Math.max(10, sy-105));ctx.lineTo(rx,Math.min(H-10, sy+40));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#915e36';ctx.font='bold 11px system-ui';ctx.textAlign='center';
+    ctx.fillText('10 E reach',Math.max(48,Math.min(W-48,rx)),Math.max(24,sy-112));
+    // A few unconnected marks reference changes in the existing terrain.
+    // They depend only on terrain and the worker's position, never entered m or c.
+    for (const hint of hints.markers) {
+      const x = hint.x * U, y = hint.y * U;
+      ctx.strokeStyle=hint.hazard?'#bd745c99':'#5d897da6';
+      ctx.lineWidth=1.9;ctx.setLineDash([3,6]);ctx.beginPath();
+      ctx.moveTo(x-16,y);ctx.lineTo(x+16,y);
+      ctx.moveTo(x,y-20);ctx.lineTo(x,y+12);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=hint.hazard?'#b47761':'#548a7f';
+      ctx.beginPath();ctx.arc(x,y,2.6,0,Math.PI*2);ctx.fill();
     }
-    ctx.strokeStyle = '#fdfefd'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(selected.x * U, (selected.y - .33) * U, 19, 0, 2 * Math.PI); ctx.stroke();
-    ctx.strokeStyle = '#287e76'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(selected.x * U, (selected.y - .33) * U, 23, 0, 2 * Math.PI); ctx.stroke();
+    ctx.strokeStyle = '#fdfefd';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(sx,(selected.y-.33)*U,19,0,2*Math.PI);ctx.stroke();
+    ctx.strokeStyle='#287e76';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(sx,(selected.y-.33)*U,23,0,2*Math.PI);ctx.stroke();
     ctx.restore();
   }
   function drawEntrance(x, y, isExit) {
@@ -417,11 +413,11 @@
       specialist:w.specialist?.kind,shrug:w.shrug,celebrate:w.celebrate,
       time:reducedMotion?0:elapsed});
     if (w.specialist) {
-      const left = Math.max(0, w.specialist.ticks - w.specialist.travelled);
+      const left = Math.max(0, w.specialist.energy - w.specialist.travelled);
       const x = w.x * U, y = w.y * U;
       ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
-      const label = (w.specialist.kind === 'rampwright' ? 'R' : 'T') + ' · ' + fmt(left);
-      ctx.fillStyle = '#fffbe9'; ctx.beginPath();ctx.roundRect(x - 22, y - 55, 44, 17, 6);ctx.fill();
+      const label = (w.specialist.kind === 'rampwright' ? 'R' : 'T') + ' · ' + fmt(left) + ' E';
+      ctx.fillStyle = '#fffbe9'; ctx.beginPath();ctx.roundRect(x - 30, y - 55, 60, 17, 6);ctx.fill();
       ctx.fillStyle = '#375d57'; ctx.fillText(label, x, y - 42);
     }
   }
@@ -454,7 +450,7 @@
     if (els.grid.checked || selected) drawAxes();
     drawEntrance(level.entrance.x, level.entrance.y, false);
     drawEntrance(level.exit.x, level.exit.y, true);
-    drawGraphPreview();
+    drawPlanningGuides();
     for (const w of walkers) if (w.alive && !w.rescued) drawCreature(w);
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.max);
@@ -527,9 +523,9 @@
     if (input.checked) brush = input.value;
   }));
   for (const role of roles) $('role-' + role).addEventListener('click', () => {
-    chosenRole = role; sync(); updatePreview();
+    chosenRole = role; sync(); updateEquation();
   });
-  [els.m, els.c, els.ticks].forEach(input => input.addEventListener('input', updatePreview));
+  [els.m, els.c].forEach(input => input.addEventListener('input', updateEquation));
   els.plotForm.addEventListener('submit', commitJob);
   els.cancel.addEventListener('click', cancelEditor);
   document.addEventListener('keydown', event => {
